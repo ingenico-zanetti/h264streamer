@@ -119,6 +119,7 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 						}
 						if(OUTPUT_STATE_RUNNING == context->outputs[i].state){
 							if(lengthToFlush != write(context->outputs[i].fd, context->outputBuffer, lengthToFlush)){
+								printf("slot %d add an error, closing fd %d" "\n", i, context->outputs[i].fd);
 								context->outputs[i].state = OUTPUT_STATE_IDLE;
 								close(context->outputs[i].fd);
 								context->outputs[i].fd  = -1;
@@ -186,7 +187,7 @@ int main(int argc, const char *argv[]){
 					int index  = contextFirstSlotAvailable(&context);
 					context.outputs[index].state = OUTPUT_STATE_IDLE;
 					context.outputs[index].fd = accept(listeningSocket, NULL, NULL);
-					printf("accepted connexion to slot %d)" "\n", index);
+					printf("accepted connexion to slot %d" "\n", index);
 				}
 				if(FD_ISSET(STDIN_FILENO, &fds)){
 					// printf("data available on stdin" "\n");
