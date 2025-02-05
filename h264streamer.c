@@ -21,7 +21,8 @@
 #include <linux/limits.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
-
+// #include <linux/tcp.h>
+#include <netinet/tcp.h>
 
 int listenSocket(struct in_addr *address, unsigned short port){
 	struct sockaddr_in local_sock_addr = {.sin_family = AF_INET, .sin_addr = *address, .sin_port = port};
@@ -135,23 +136,24 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 			if(lengthToFlush > 0){
 				int i = MAX_OUTPUTS;
 				while(i--){
-					if(context->outputs[i].fd != -1){
+					int fd = context->outputs[i].fd;
+					if(fd != -1){
 						if(newGOP && (OUTPUT_STATE_IDLE == context->outputs[i].state)){
 							context->outputs[i].state = OUTPUT_STATE_RUNNING;
 						}
 						if(OUTPUT_STATE_RUNNING == context->outputs[i].state){
-							int written = write(context->outputs[i].fd, context->outputBuffer, lengthToFlush);
+							int written = write(fd, context->outputBuffer, lengthToFlush);
 							if(-1 == written){
 								char tempDate[32];
 								printfDate("%Y%m%d-%H%M%S: ", tempDate, sizeof(tempDate) - 1);
 								printf("slot %d had an error (%s), closing" "\n", i, strerror(errno));
-								close(context->outputs[i].fd);
+								close(fd);
 								context->outputs[i].fd  = -1;
 							}else{
 								if(lengthToFlush != written){
 									char tempDate[32];
 									printfDate("%Y%m%d-%H%M%S: ", tempDate, sizeof(tempDate) - 1);
-									printf("slot %d could handle the throuhput (%d != %d), wait next key frame" "\n", i, lengthToFlush, written);
+									printf("slot %d could handle the throuhput (%d < %d), wait for next key frame" "\n", i, written, lengthToFlush);
 									context->outputs[i].state = OUTPUT_STATE_IDLE;
 								}
 							}
@@ -219,8 +221,8 @@ int main(int argc, const char *argv[]){
 					context.outputs[index].state = OUTPUT_STATE_IDLE;
 					context.outputs[index].fd = accept(listeningSocket, NULL, NULL);
 					int nonBlocking = 1;
-					int rc = ioctl(context.outputs[index].fd, FIONBIO, &nonBlocking);
-					printf("accepted connexion to slot %d, rc=%d" "\n", index, rc);
+					int rcNonBlocking = ioctl(context.outputs[index].fd, FIONBIO, &nonBlocking);
+					printf("accepted connexion to slot %d, FIONBIO=>%d" "\n", index, rcNonBlocking);
 				}
 				if(FD_ISSET(STDIN_FILENO, &fds)){
 					// printf("data available on stdin" "\n");
