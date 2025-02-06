@@ -153,7 +153,7 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 								if(lengthToFlush != written){
 									char tempDate[32];
 									printfDate("%Y%m%d-%H%M%S: ", tempDate, sizeof(tempDate) - 1);
-									printf("slot %d could handle the throuhput (%d < %d), wait for next key frame" "\n", i, written, lengthToFlush);
+									printf("slot %d couldn't handle the throuhput (%d < %d), wait for next key frame" "\n", i, written, lengthToFlush);
 									context->outputs[i].state = OUTPUT_STATE_IDLE;
 								}
 							}
