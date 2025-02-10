@@ -48,7 +48,7 @@ int listenSocket(struct in_addr *address, unsigned short port){
 	return listen_socket;
 }
 
-#define BUFFER_SIZE (1 * 1000 * 1000)
+#define BUFFER_SIZE (16 * 1000 * 1000)
 #define MAX_OUTPUTS (16)
 
 typedef enum {
@@ -109,6 +109,11 @@ static int printfDate(const char *formatString, char *outString, int outLen){
 	   return(0);
 }
 
+void printDate(void){
+	char tempDate[32];
+	printfDate("%Y%m%d-%H%M%S: ", tempDate, sizeof(tempDate) - 1);
+}
+
 static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer, ssize_t length){
 	ssize_t i = length;
 	const uint8_t *p = buffer;
@@ -121,7 +126,7 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 		}else if((context->index == 3) && (1 == octet)){
 			context->index++;
 		}else if(context->index == 4){
-			// printf("0x00000001%02X found" "\n", octet);
+			// printDate(); printf("0x00000001%02X found" "\n", octet);
 			context->index = 0;
 			if(0x67 == octet){
 				newGOP = 1;
@@ -130,7 +135,14 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 		}else{
 			context->index = 0;
 		}
-		context->outputBuffer[context->outputBufferIndex++] = octet;
+		if(context->outputBufferIndex < BUFFER_SIZE){
+			context->outputBuffer[context->outputBufferIndex++] = octet;
+		}else{
+			printDate(); printf("discard buffer, outputBufferIndex=%u, index=%u" "\n", context->outputBufferIndex, context->index = 0);
+			context->outputBufferIndex  = 0;
+			context->index = 0;
+			doFlush = 0;
+		}
 		if(doFlush){
 			ssize_t lengthToFlush = context->outputBufferIndex - 5;
 			if(lengthToFlush > 0){
@@ -144,16 +156,12 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 						if(OUTPUT_STATE_RUNNING == context->outputs[i].state){
 							int written = write(fd, context->outputBuffer, lengthToFlush);
 							if(-1 == written){
-								char tempDate[32];
-								printfDate("%Y%m%d-%H%M%S: ", tempDate, sizeof(tempDate) - 1);
-								printf("slot %d had an error (%s), closing" "\n", i, strerror(errno));
+								printDate(); printf("slot %d had an error (%s), closing" "\n", i, strerror(errno));
 								close(fd);
 								context->outputs[i].fd  = -1;
 							}else{
 								if(lengthToFlush != written){
-									char tempDate[32];
-									printfDate("%Y%m%d-%H%M%S: ", tempDate, sizeof(tempDate) - 1);
-									printf("slot %d couldn't handle the throuhput (%d < %d), wait for next key frame" "\n", i, written, lengthToFlush);
+									printDate(); printf("slot %d couldn't handle the throuhput (%d < %d), wait for next key frame" "\n", i, written, lengthToFlush);
 									context->outputs[i].state = OUTPUT_STATE_IDLE;
 								}
 							}
@@ -166,7 +174,7 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 				context->outputBufferIndex = 5;
 				context->outputBuffer[4] = octet;
 			}else{
-				printf("nothing to flush" "\n");
+				printDate(); printf("nothing to flush" "\n");
 			}
 		}
 	}
@@ -212,7 +220,7 @@ int main(int argc, const char *argv[]){
 						close(fd);
 						context.outputs[i].fd = -1;
 						context.outputs[i].state = OUTPUT_STATE_IDLE;
-						printf("slot %d add an error, closing fd %d" "\n", i, fd);
+						printDate(); printf("slot %d add an error, closing fd %d" "\n", i, fd);
 					}
 				}
 				// Check listening socket for incoming connection
@@ -222,7 +230,7 @@ int main(int argc, const char *argv[]){
 					context.outputs[index].fd = accept(listeningSocket, NULL, NULL);
 					int nonBlocking = 1;
 					int rcNonBlocking = ioctl(context.outputs[index].fd, FIONBIO, &nonBlocking);
-					printf("accepted connexion to slot %d, FIONBIO=>%d" "\n", index, rcNonBlocking);
+					printDate(); printf("accepted connexion to slot %d, FIONBIO=>%d" "\n", index, rcNonBlocking);
 				}
 				if(FD_ISSET(STDIN_FILENO, &fds)){
 					// printf("data available on stdin" "\n");
