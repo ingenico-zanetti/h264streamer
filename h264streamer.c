@@ -220,7 +220,7 @@ int main(int argc, const char *argv[]){
 						close(fd);
 						context.outputs[i].fd = -1;
 						context.outputs[i].state = OUTPUT_STATE_IDLE;
-						printDate(); printf("slot %d add an error, closing fd %d" "\n", i, fd);
+						printDate(); printf("slot %d had an error, closing fd %d" "\n", i, fd);
 					}
 				}
 				// Check listening socket for incoming connection
