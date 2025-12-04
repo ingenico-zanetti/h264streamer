@@ -18,6 +18,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <time.h>
+#include <signal.h>
 #include <linux/limits.h>
 #include <sys/time.h>
 #include <sys/ioctl.h>
@@ -180,7 +181,21 @@ static void analyze_and_forward(parserContext_s *context, const uint8_t *buffer,
 	}
 }
 
+static void signalHandlerFunction(int theSignal, siginfo_t *si, void *unused){
+        fprintf(stderr, "%s(%i)" "\n", __func__, theSignal);
+}
+
 int main(int argc, const char *argv[]){
+	// Avoid dying because of SIGPIPE
+        // when remote has closed the connection and we are not lucky enough to simply get an error on the write()
+        {
+                struct sigaction signalHandler;
+                signalHandler.sa_sigaction = signalHandlerFunction;
+                signalHandler.sa_flags = SA_SIGINFO;
+                sigemptyset(&signalHandler.sa_mask);
+
+                sigaction(SIGPIPE, &signalHandler, 0);
+        }
 	int in  = STDIN_FILENO;
 	uint8_t *buffer = (uint8_t *)malloc(BUFFER_SIZE);
 	if(buffer != NULL){
