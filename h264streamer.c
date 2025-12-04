@@ -202,27 +202,9 @@ int main(int argc, const char *argv[]){
 			if(-1 != listeningSocket && (0 <= contextFirstSlotAvailable(&context))){
 				FD_SET(listeningSocket, &fds); updateMax(&max, listeningSocket);
 			}
-			int i = MAX_OUTPUTS;
-			while(i--){
-				int fd = context.outputs[i].fd;
-				if(-1 != fd){
-					FD_SET(fd, &fds); updateMax(&max, fd);
-				}
-			}
 			struct timeval timeout = {.tv_sec = 1, .tv_usec = 0};
 			int selected = select(max + 1, &fds, NULL, NULL, &timeout);
 			if(selected > 0){
-				// Check forwarding socket for error (read ready should not happen)
-				i = MAX_OUTPUTS;
-				while(i--){
-					int fd = context.outputs[i].fd;
-					if(FD_ISSET(fd, &fds)){
-						close(fd);
-						context.outputs[i].fd = -1;
-						context.outputs[i].state = OUTPUT_STATE_IDLE;
-						printDate(); printf("slot %d had an error, closing fd %d" "\n", i, fd);
-					}
-				}
 				// Check listening socket for incoming connection
 				if(FD_ISSET(listeningSocket, &fds)){
 					int index  = contextFirstSlotAvailable(&context);
